@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <readline/history.h>
 
 #include "Command.h"
 #include "error.h"
@@ -22,10 +23,10 @@ typedef struct
 } *CommandRep;
 
 // Macro Definitions for Builtin Commands
-#define BIARGS CommandRep r, int *eof, Jobs jobs
-#define BINAME(name) bi_##name
-#define BIDEFN(name) static void BINAME(name)(BIARGS)
-#define BIENTRY(name) {#name, BINAME(name)}
+#define BIARGS CommandRep r, int *eof, Jobs jobs      // Set built in number of arguments
+#define BINAME(name) bi_##name                        // set the name of built in
+#define BIDEFN(name) static void BINAME(name)(BIARGS) // define built in
+#define BIENTRY(name) {#name, BINAME(name)}           // ??
 
 // Old working directory
 static char *owd = 0;
@@ -59,23 +60,39 @@ static void builtin_args(CommandRep r, int n)
     ERROR("wrong number of arguments to builtin command"); // warn
 }
 
+// BIDEFN(histroy)
+// {
+//   printf("DEBUG print command history");
+// }
+
+// Exit Built in command
 BIDEFN(exit)
 {
   builtin_args(r, 0);
-  *eof = 1;
+  *eof = 1; // Set end of file to 1 exiting program
 }
 
+// Print Working Directory command
 BIDEFN(pwd)
 {
-  builtin_args(r, 0);
+  builtin_args(r, 0); // valdiate number of arguments
+  // Check if current working directory exists
   if (!cwd)
+  {
+    // IF not get current working directory
     cwd = getcwd(0, 0);
+  }
+  // Out put current directory to terminal
   printf("%s\n", cwd);
 }
 
+// Change Directory command
 BIDEFN(cd)
 {
-  builtin_args(r, 1);
+  builtin_args(r, 1); // Validate number of arguments
+
+  // Check if the first argument is -
+  // - means go to the previous directory
   if (strcmp(r->argv[1], "-") == 0)
   {
     char *twd = cwd;
@@ -92,6 +109,24 @@ BIDEFN(cd)
   if (cwd && chdir(cwd))
     ERROR("chdir() failed"); // warn
 }
+// TODO Implenent history built in
+BIDEFN(history)
+{
+  // Valdiate number of arguments
+  builtin_args(r, 0);
+  // Get history list
+  HIST_ENTRY **list = history_list();
+  if (!list)
+  {
+    return;
+  }
+
+  for (int i = 0; list[i]; i++)
+  {
+    printf("%d: %s\n", i + history_base, list[i]->line);
+  }
+}
+
 /**
  * Dispatcher function that checks if a command is a builtin and executes it
  *
@@ -121,6 +156,7 @@ static int builtin(BIARGS)
       BIENTRY(exit),
       BIENTRY(pwd),
       BIENTRY(cd),
+      BIENTRY(history),
       {0, 0}};
   int i;
   for (i = 0; builtins[i].s; i++)
@@ -230,8 +266,6 @@ static void child(CommandRep r, int fg)
   ERROR("execvp() failed");
   exit(0);
 }
-
-// TODO does NOT wait for children!
 
 extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
                         int *jobbed, int *eof, int fg)

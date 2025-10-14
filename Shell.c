@@ -20,7 +20,10 @@ int main()
   if (isatty(fileno(stdin)))
   {
     using_history();
-    read_history(".history");
+
+    // MIGHT NEED TO CHANGE BACK
+    // read_history(".history");
+    clear_history();
     prompt = "$ ";
   }
   else
