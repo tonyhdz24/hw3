@@ -66,10 +66,10 @@ static void i_pipeline(T_pipeline t, Pipeline pipeline)
  * @return void (modifies sequence parameter in-place)
  *
  * @note Recursive function - processes current pipeline then calls itself
- * @note Currently doesn't handle background flag (&) - needs implementation
- * @note The '1' parameter to newPipeline needs to be replaced with actual
- *       foreground/background flag from parse tree
  */
+
+// TODO Implement background flag (&)
+// TODO newPipleine has hard coded parameter of 1 needs to be changed to actual foreground/background flag from parse tree
 static void i_sequence(T_sequence t, Sequence sequence)
 {
   if (!t)
@@ -115,8 +115,13 @@ static void i_sequence(T_sequence t, Sequence sequence)
  */
 extern void interpretTree(Tree t, int *eof, Jobs jobs)
 {
+  // Validate parse tree is valid
   if (!t)
+  {
     return;
+  }
+  // New sequence created
+  // A sequence is the root of the grammer the highest level rule
   Sequence sequence = newSequence();
   i_sequence(t, sequence);
   execSequence(sequence, jobs, eof);

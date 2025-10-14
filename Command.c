@@ -2,24 +2,54 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/wait.h>
 
 #include "Command.h"
 #include "error.h"
 
+/**
+ * CommandRep - Internal representation of a Command
+ *
+ * This struct holds the informatin to execute a command:
+ * - file: The name of the program to execute (ls)
+ * - argv: Array of argument strings ["ls","-l"]
+ *         argv[0] is always the program name
+ */
 typedef struct
 {
   char *file;
   char **argv;
 } *CommandRep;
 
+// Macro Definitions for Builtin Commands
 #define BIARGS CommandRep r, int *eof, Jobs jobs
 #define BINAME(name) bi_##name
 #define BIDEFN(name) static void BINAME(name)(BIARGS)
 #define BIENTRY(name) {#name, BINAME(name)}
 
+// Old working directory
 static char *owd = 0;
+// Current working directory
 static char *cwd = 0;
 
+/**
+ * Validates that a builtin command received the correct number of arguments
+ *
+ * This function counts the actual number of arguments in argv and compares
+ * it to the expected count 'n'. If they don't match, it reports an error.
+ *
+ * Algorithm:
+ * 1. Start with n (expected count)
+ * 2. Walk through argv, decrementing n for each argument
+ * 3. After the loop, if n != 0, we have wrong number of args
+ *
+ * @param r  Command representation containing argv
+ * @param n  Expected number of arguments (NOT counting program name)
+ *
+ * Example: For "cd /tmp", argv=["cd", "/tmp", NULL], n should be 1
+ *          Loop: n=1+1=2, *argv++=argv[0] n=1, *argv++=argv[1] n=0, *argv++=NULL loop ends
+ *          If n=0 at end, correct number of args!
+ */
 static void builtin_args(CommandRep r, int n)
 {
   char **argv = r->argv;
@@ -62,7 +92,24 @@ BIDEFN(cd)
   if (cwd && chdir(cwd))
     ERROR("chdir() failed"); // warn
 }
-
+/**
+ * Dispatcher function that checks if a command is a builtin and executes it
+ *
+ * This function maintains a table of all builtin commands and their
+ * corresponding handler functions. It searches the table for a match
+ * with the command name and executes it if found.
+ *
+ * The builtin table is defined using our macros for consistency:
+ * - Each entry maps a command name (string) to its function pointer
+ * - Table is terminated with {0, 0} sentinel
+ *
+ * @param r    Command representation (r->file is command name)
+ * @param eof  EOF flag pointer (passed to builtin if executed)
+ * @param jobs Job table (passed to builtin if executed)
+ *
+ * @return 1 if command was a builtin and was executed
+ *         0 if command was not found in builtin table
+ */
 static int builtin(BIARGS)
 {
   typedef struct
@@ -84,7 +131,28 @@ static int builtin(BIARGS)
     }
   return 0;
 }
-
+/**
+ * Converts a T_words linked list from the parse tree into an argv array
+ *
+ * The parse tree represents command arguments as a linked list of words.
+ * The exec family of functions requires arguments as a NULL-terminated
+ * array of strings (char**). This function performs that conversion.
+ *
+ * Algorithm:
+ * 1. First pass: Count the number of words in the linked list
+ * 2. Allocate array of (n+1) char* pointers (extra slot for NULL terminator)
+ * 3. Second pass: Copy each word string into the array
+ * 4. Set final element to NULL (required by execvp)
+ *
+ * Example:
+ *   Input:  T_words list: "ls" -> "-l" -> "/tmp" -> NULL
+ *   Output: argv array: ["ls", "-l", "/tmp", NULL]
+ *
+ * @param words  Linked list of words from parse tree
+ *
+ * @return Newly allocated argv array (caller must free)
+ *         NULL-terminated array of string pointers
+ */
 static char **getargs(T_words words)
 {
   int n = 0;
@@ -117,36 +185,102 @@ extern Command newCommand(T_words words)
   r->file = r->argv[0];
   return r;
 }
-
+/**
+ * Child process execution function
+ *
+ * This function runs in the CHILD process after fork().
+ * It's responsible for:
+ * 1. Checking if command is a builtin (execute if so, then return)
+ * 2. If not builtin, replace child process with the external program (execvp)
+ *
+ * IMPORTANT: This function only returns if the command is a builtin.
+ * If execvp() is called, it REPLACES the child process entirely.
+ * If execvp() fails, we error and exit.
+ *
+ * Why check for builtins in child?
+ * - Some builtins might be in a pipeline or backgrounded
+ * - In those cases, they should run in a child process, not the shell
+ *
+ * Process flow:
+ *   fork() creates child
+ *   ↓
+ *   child() called in child process
+ *   ↓
+ *   Is builtin? → Yes → execute, return, child exits
+ *             → No  → execvp replaces process with new program
+ *                     (if execvp fails, error and exit)
+ *
+ * @param r   Command representation to execute
+ * @param fg  Foreground flag (currently unused in this function)
+ */
 static void child(CommandRep r, int fg)
 {
+
+  // printf("DEBUG in child()\n");
+
   int eof = 0;
   Jobs jobs = newJobs();
+  // check if child command is a builtIn if it is then execute the built in command
   if (builtin(r, &eof, jobs))
+  {
     return;
+  }
+  // If not a builtIN then call execvp() replaces the child process with the external program
   execvp(r->argv[0], r->argv);
   ERROR("execvp() failed");
   exit(0);
 }
 
+// TODO does NOT wait for children!
+
 extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
                         int *jobbed, int *eof, int fg)
 {
+  // command to execute
   CommandRep r = command;
+  // printf("DEBUG executing command => %s \n", r->file);
+
+  // printf("DEBUG comamand fg is => %d \n", fg);
+
+  // IF command is set to run in foreground and is a built in run immediatly
   if (fg && builtin(r, eof, jobs))
+  {
+    // printf("DEBUG this command is a built in!\n");
     return;
+  }
+  // Check if this command has been jobbed (added to the jobs queue) if not add to jobs queue
   if (!*jobbed)
   {
     *jobbed = 1;
     addJobs(jobs, pipeline);
   }
+  // Fork (create a new child process)
   int pid = fork();
-  if (pid == -1)
-    ERROR("fork() failed");
-  if (pid == 0)
-    child(r, fg);
-}
 
+  // printf("DEBUG pid is = %d \n", pid);
+
+  if (pid == -1)
+  {
+    ERROR("fork() failed");
+  }
+
+  // If process is a child
+  if (pid == 0)
+  {
+    // printf("DEBUG process is a child !!!\n");
+    // process child
+    child(r, fg);
+  }
+  else
+  {
+    // Process is a parent wait for child to exit
+    if (fg)
+    {
+      int status;
+      waitpid(pid, &status, 0);
+    }
+  }
+}
 extern void freeCommand(Command command)
 {
   CommandRep r = command;

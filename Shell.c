@@ -37,8 +37,7 @@ int main()
       break;
     if (*line)
     {
-      printf("DEBUG\n");
-      printf("LINE => %s\n", line);
+      // printf("DEBUG LINE => %s\n", line);
       // Adding line to history
       add_history(line);
     }
@@ -48,7 +47,8 @@ int main()
     // Freeing line after bing parsed
     free(line);
     // After parse tree has been built from input command string. Intrepret the tree
-    // This envolves actually executing the input command
+
+    //* This envolves actually executing the input command
     interpretTree(tree, &eof, jobs);
 
     // Last step to clean up and free the Parse Tree allocated
