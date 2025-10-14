@@ -164,6 +164,7 @@ static T_sequence p_sequence()
 extern Tree parseTree(char *s)
 {
   scan = newScanner(s);
+  
   Tree tree = p_sequence();
   if (curr())
     ERROR("extra characters at end of input");
