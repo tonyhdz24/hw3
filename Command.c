@@ -76,6 +76,7 @@ BIDEFN(exit)
 BIDEFN(pwd)
 {
   builtin_args(r, 0); // valdiate number of arguments
+
   // Check if current working directory exists
   if (!cwd)
   {
@@ -101,15 +102,28 @@ BIDEFN(cd)
   }
   else
   {
+    // IF there was an old working directory
     if (owd)
-      free(owd);
+    {
+      free(owd); // free it from memory
+    }
+    // Update owd and cwd variables
     owd = cwd;
-    cwd = strdup(r->argv[1]);
+
+    // Change directroy
+    if (chdir(r->argv[1]) == -1)
+    {
+      ERROR("chdir() failed");
+      return;
+    }
+
+    // Update cwd variable
+    cwd = getcwd(0, 0);
+    if (strcmp(r->argv[1], "-") == 0 && cwd && chdir(cwd))
+      ERROR("chdir() failed");
   }
-  if (cwd && chdir(cwd))
-    ERROR("chdir() failed"); // warn
 }
-// TODO Implenent history built in
+// Implementation of history built in
 BIDEFN(history)
 {
   // Valdiate number of arguments
