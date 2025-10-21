@@ -1,4 +1,10 @@
 pwd
-history
-clear
+cd ../
+pwd
+ls
+cd ../
+ls
+cd ../
+pwd
+ecit
 exit
