@@ -73,9 +73,29 @@ static void i_pipeline(T_pipeline t, Pipeline pipeline)
 static void i_sequence(T_sequence t, Sequence sequence)
 {
   if (!t)
+  {
     return;
-  Pipeline pipeline = newPipeline(1);
+  }
+  // printf("DEBUG Interpreting a new sequencce ===========\n");
+  // printf("DEBUG operation is => %s\n", t->op);
+
+  // Whether the process runs in the fg or bg is determend by the operator after the command
+  // & = run in the background
+  // ; = run in the foreground
+  int processFlag = 1;
+
+  if (t->op && !strcmp(t->op, "&"))
+  {
+    // printf("DEBUG This sequence is set to run in the background!!\n");
+    processFlag = 0;
+  }
+
+  Pipeline pipeline = newPipeline(processFlag);
+  // printf("DEBUG ^^^^^^^^ Return from newPipeline ^^^^^^^^\n");
+  // Newly parsed pipeline passed in to pipeline interpreter
   i_pipeline(t->pipeline, pipeline);
+  // printf("DEBUG ^^^^^^^^ Return from i_pipeline ^^^^^^^^\n");
+
   addSequence(sequence, pipeline);
   i_sequence(t->sequence, sequence);
 }
