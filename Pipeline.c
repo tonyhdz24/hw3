@@ -8,45 +8,59 @@
 #include "deq.h"
 #include "error.h"
 
-typedef struct {
+typedef struct
+{
   Deq processes;
-  int fg;			// not "&"
+  int fg; // not "&"
 } *PipelineRep;
 
-extern Pipeline newPipeline(int fg) {
-  PipelineRep r=(PipelineRep)malloc(sizeof(*r));
+extern Pipeline newPipeline(int fg)
+{
+  // Allocating memory for pipeline
+  PipelineRep r = (PipelineRep)malloc(sizeof(*r));
   if (!r)
+  {
     ERROR("malloc() failed");
-  r->processes=deq_new();
-  r->fg=fg;
+  }
+  // Init the process queue and the process flag
+  r->processes = deq_new();
+  r->fg = fg;
+
   return r;
 }
 
-extern void addPipeline(Pipeline pipeline, Command command) {
-  PipelineRep r=(PipelineRep)pipeline;
-  deq_tail_put(r->processes,command);
+extern void addPipeline(Pipeline pipeline, Command command)
+{
+  PipelineRep r = (PipelineRep)pipeline;
+  // printf("DEBUG printing pipeline info %d\n", r->fg);
+
+  deq_tail_put(r->processes, command);
 }
 
-extern int sizePipeline(Pipeline pipeline) {
-  PipelineRep r=(PipelineRep)pipeline;
+extern int sizePipeline(Pipeline pipeline)
+{
+  PipelineRep r = (PipelineRep)pipeline;
   return deq_len(r->processes);
 }
 
-static void execute(Pipeline pipeline, Jobs jobs, int *jobbed, int *eof) {
-  PipelineRep r=(PipelineRep)pipeline;
-  for (int i=0; i<sizePipeline(r) && !*eof; i++)
-    execCommand(deq_head_ith(r->processes,i),pipeline,jobs,jobbed,eof,1);
+static void execute(Pipeline pipeline, Jobs jobs, int *jobbed, int *eof)
+{
+  PipelineRep r = (PipelineRep)pipeline;
+  for (int i = 0; i < sizePipeline(r) && !*eof; i++)
+    execCommand(deq_head_ith(r->processes, i), pipeline, jobs, jobbed, eof, r->fg);
 }
 
-extern void execPipeline(Pipeline pipeline, Jobs jobs, int *eof) {
-  int jobbed=0;
-  execute(pipeline,jobs,&jobbed,eof);
+extern void execPipeline(Pipeline pipeline, Jobs jobs, int *eof)
+{
+  int jobbed = 0;
+  execute(pipeline, jobs, &jobbed, eof);
   if (!jobbed)
-    freePipeline(pipeline);	// for fg builtins, and such
+    freePipeline(pipeline); // for fg builtins, and such
 }
 
-extern void freePipeline(Pipeline pipeline) {
-  PipelineRep r=(PipelineRep)pipeline;
-  deq_del(r->processes,freeCommand);
+extern void freePipeline(Pipeline pipeline)
+{
+  PipelineRep r = (PipelineRep)pipeline;
+  deq_del(r->processes, freeCommand);
   free(r);
 }
