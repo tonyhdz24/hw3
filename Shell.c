@@ -22,8 +22,8 @@ int main()
     using_history();
 
     // MIGHT NEED TO CHANGE BACK
-    // read_history(".history");
-    clear_history();
+    read_history(".history");
+    // clear_history();
     prompt = "$ ";
   }
   else
@@ -56,6 +56,7 @@ int main()
 
     // Last step to clean up and free the Parse Tree allocated
     freeTree(tree);
+    reap_background_processes();
   }
 
   if (isatty(fileno(stdin)))
