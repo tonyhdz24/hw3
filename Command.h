@@ -6,7 +6,11 @@ typedef void *Command;
 #include "Tree.h"
 #include "Jobs.h"
 #include "Sequence.h"
-
+/**
+ * Reap terminated background processes to prevent zombies
+ * Should be called periodically (e.g., after each command)
+ */
+extern void reap_background_processes();
 /**
  * Creates a new Command object from a list of words
  *

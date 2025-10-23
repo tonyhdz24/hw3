@@ -7,6 +7,7 @@
 
 #include "Command.h"
 #include "error.h"
+#include "deq.h"
 
 /**
  * CommandRep - Internal representation of a Command
@@ -32,7 +33,53 @@ typedef struct
 static char *owd = 0;
 // Current working directory
 static char *cwd = 0;
+// Queue to track all background process
+static Deq background_pids = NULL;
 
+/**
+ *
+ * Reap any terminated background process
+ *
+ * Checks all PIDs in the background_pids and removes any that have terminated
+ *
+ */
+extern void reap_background_processes()
+{
+
+  // Validate that there is a background pids queue with processes in it
+  if (!background_pids || deq_len(background_pids) == 0)
+  {
+    return;
+  }
+
+  // TODO Loop through background_pids
+  printf("DEBUG background_pids length is = %d\n", deq_len(background_pids));
+  // For each PID:
+  // - Call wait pid
+  // - IF returned pid (process terminated) remove it from queue
+  // - if retruns 0 it is still running
+
+  int num_to_check = deq_len(background_pids);
+
+  for (int i = 0; i < num_to_check; i++)
+  {
+    int pid = (int)(long)deq_head_get(background_pids);
+
+    int status;
+    int result = waitpid(pid, &status, WNOHANG);
+
+    if (result == 0)
+    {
+      deq_tail_put(background_pids, (Data)(long)pid);
+    }
+    else if (result == pid)
+    {
+    }
+    else if (result == -1)
+    {
+    }
+  }
+}
 /**
  * Validates that a builtin command received the correct number of arguments
  *
@@ -68,7 +115,19 @@ static void builtin_args(CommandRep r, int n)
 // Exit Built in command
 BIDEFN(exit)
 {
+  // printf("DEBUG Exit called check for any running processes\n");
+  // printf("DEBUG Checking if the background job queue is empry\n");
+  // printf("DEBUG length => %d\n", deq_len(background_pids));
   builtin_args(r, 0);
+  if (background_pids)
+  {
+    while (deq_len(background_pids) > 0)
+    {
+      int exit_pid = (int)(long)deq_head_get(background_pids);
+      waitpid(exit_pid, 0, 0);
+    }
+  }
+
   *eof = 1; // Set end of file to 1 exiting program
 }
 
@@ -326,6 +385,15 @@ extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
     {
       int status;
       waitpid(pid, &status, 0);
+    }
+    else
+    {
+      if (!background_pids)
+      {
+        printf("DEBUG Init background jobs queue!\n");
+        background_pids = deq_new();
+      }
+      deq_tail_put(background_pids, (Data)(long)pid);
     }
   }
 }
