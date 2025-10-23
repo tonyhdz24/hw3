@@ -1,10 +1,7 @@
+exit
+sleep 1 & sleep 1 & sleep 1 & sleep 1 & 
+clear
 pwd
-cd ../
-pwd
-ls
-cd ../
-ls
-cd ../
-pwd
-ecit
+exit
+sleep 1 & sleep 1 & sleep 1 & sleep 1 & 
 exit
