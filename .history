@@ -54,3 +54,11 @@ exit
 cat file.txt | grep hello | wx -w
 cat file.txt | grep hello | wc -w
 exit
+pwd | cat ; cd /etc | pwd
+exit
+pwd
+echo hello world | wc -w
+exit
+pwd
+echo hello | wc -w
+exit

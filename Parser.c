@@ -214,6 +214,7 @@ static void f_command(T_command t)
   if (!t)
     return;
   f_words(t->words);
+  f_redir(t->redir);
   free(t);
 }
 
