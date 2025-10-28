@@ -4,7 +4,7 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <readline/history.h>
-
+#include <fcntl.h>
 #include "Command.h"
 #include "error.h"
 #include "deq.h"
@@ -21,6 +21,8 @@ typedef struct
 {
   char *file;
   char **argv;
+  char *input;
+  char *output;
 } *CommandRep;
 
 // Macro Definitions for Builtin Commands
@@ -45,38 +47,32 @@ static Deq background_pids = NULL;
  */
 extern void reap_background_processes()
 {
-
-  // Validate that there is a background pids queue with processes in it
   if (!background_pids || deq_len(background_pids) == 0)
   {
     return;
   }
-
-  // TODO Loop through background_pids
-  printf("DEBUG background_pids length is = %d\n", deq_len(background_pids));
-  // For each PID:
-  // - Call wait pid
-  // - IF returned pid (process terminated) remove it from queue
-  // - if retruns 0 it is still running
 
   int num_to_check = deq_len(background_pids);
 
   for (int i = 0; i < num_to_check; i++)
   {
     int pid = (int)(long)deq_head_get(background_pids);
-
     int status;
     int result = waitpid(pid, &status, WNOHANG);
 
     if (result == 0)
     {
+      // Still running, put back at tail
       deq_tail_put(background_pids, (Data)(long)pid);
     }
     else if (result == pid)
     {
+      // Process terminated, don't put back (it's reaped!)
+      // That's it! Just don't put it back in the queue
     }
     else if (result == -1)
     {
+      // Error or process doesn't exist, don't put back
     }
   }
 }
@@ -285,13 +281,16 @@ static char **getargs(T_words words)
   return argv;
 }
 
-extern Command newCommand(T_words words)
+extern Command newCommand(T_words words, T_redir redir)
 {
   CommandRep r = (CommandRep)malloc(sizeof(*r));
   if (!r)
     ERROR("malloc() failed");
   r->argv = getargs(words);
   r->file = r->argv[0];
+  // handle redirs
+  r->input = redir && redir->input ? strdup(redir->input) : NULL;
+  r->output = redir && redir->output ? strdup(redir->output) : NULL;
   return r;
 }
 /**
@@ -322,32 +321,80 @@ extern Command newCommand(T_words words)
  * @param r   Command representation to execute
  * @param fg  Foreground flag (currently unused in this function)
  */
+// NEW child() - handles redirection
 static void child(CommandRep r, int fg)
 {
+  // Handle input redirection
+  if (r->input)
+  {
+    int fd = open(r->input, O_RDONLY); // Open input file
+    if (fd == -1)
+    {
+      ERROR("failed to open input file");
+      exit(EXIT_FAILURE);
+    }
+    if (dup2(fd, STDIN_FILENO) == -1) // Redirect stdin to file
+    {
+      ERROR("dup2() failed for input");
+      exit(EXIT_FAILURE);
+    }
+    close(fd); // Close original fd, stdin is now the file
+  }
 
-  // printf("DEBUG in child()\n");
+  // Handle output redirection
+  if (r->output)
+  {
+    int fd = open(r->output, O_WRONLY | O_CREAT | O_TRUNC, 0666); // Create/open output file
+    if (fd == -1)
+    {
+      ERROR("failed to open output file");
+      exit(EXIT_FAILURE);
+    }
+    if (dup2(fd, STDOUT_FILENO) == -1) // Redirect stdout to file
+    {
+      ERROR("dup2() failed for output");
+      exit(EXIT_FAILURE);
+    }
+    close(fd); // Close original fd, stdout is now the file
+  }
 
+  // Now execute - stdin/stdout are redirected if needed
   int eof = 0;
   Jobs jobs = newJobs();
-  // check if child command is a builtIn if it is then execute the built in command
   if (builtin(r, &eof, jobs))
   {
     return;
   }
-  // If not a builtIN then call execvp() replaces the child process with the external program
   execvp(r->argv[0], r->argv);
   ERROR("execvp() failed");
-  exit(0);
+  exit(EXIT_FAILURE);
 }
+// static void child(CommandRep r, int fg)
+// {
+
+//   // printf("DEBUG in child()\n");
+
+//   int eof = 0;
+//   Jobs jobs = newJobs();
+//   // check if child command is a builtIn if it is then execute the built in command
+//   if (builtin(r, &eof, jobs))
+//   {
+//     return;
+//   }
+//   // If not a builtIN then call execvp() replaces the child process with the external program
+//   execvp(r->argv[0], r->argv);
+//   ERROR("execvp() failed");
+//   exit(0);
+// }
 
 extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
                         int *jobbed, int *eof, int fg)
 {
   // command to execute
   CommandRep r = command;
-  printf("DEBUG executing command => %s \n", r->file);
+  // printf("DEBUG executing command => %s \n", r->file);
 
-  printf("DEBUG comamand fg is => %d \n", fg);
+  // printf("DEBUG comamand fg is => %d \n", fg);
 
   // IF command is set to run in foreground and is a built in run immediatly
   if (fg && builtin(r, eof, jobs))
@@ -390,7 +437,7 @@ extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
     {
       if (!background_pids)
       {
-        printf("DEBUG Init background jobs queue!\n");
+        // printf("DEBUG Init background jobs queue!\n");
         background_pids = deq_new();
       }
       deq_tail_put(background_pids, (Data)(long)pid);

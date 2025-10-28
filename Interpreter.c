@@ -31,7 +31,7 @@ static Command i_command(T_command t)
     return 0;
   Command command = 0;
   if (t->words)
-    command = newCommand(t->words);
+    command = newCommand(t->words, t->redir);
   return command;
 }
 

@@ -34,7 +34,7 @@ extern void reap_background_processes();
  *   Input:  words: "cat" -> "file.txt" -> NULL
  *   Output: Command with argv=["cat", "file.txt", NULL], file="cat"
  */
-extern Command newCommand(T_words words);
+extern Command newCommand(T_words words, T_redir redir);
 /**
  * Executes a command - the main entry point for command execution
  *

@@ -1,0 +1,2 @@
+echo hello > Test/temp.txt
+cat Test/temp.txt

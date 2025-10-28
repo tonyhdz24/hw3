@@ -21,8 +21,9 @@ static int eat(char *s) { return eatScanner(scan, s); } // Compares a given stri
 
 // Grammer Integration
 // Based on the provided grammar each rule gets its own parser
-static T_word p_word();         // Parses word
-static T_words p_words();       // Parses words
+static T_word p_word();   // Parses word
+static T_words p_words(); // Parses words
+static T_redir p_redir();
 static T_command p_command();   // Parses commands
 static T_pipeline p_pipeline(); // Parses pipeline
 static T_sequence p_sequence(); // Parses sequence
@@ -71,7 +72,7 @@ static T_words p_words()
 
   // If any operators encountered return words
   // Grammar states that words can only be word or words word
-  if (cmp("|") || cmp("&") || cmp(";"))
+  if (cmp("|") || cmp("&") || cmp(";") || cmp("<") || cmp(">"))
     return words;
 
   // Recursively parse more words
@@ -101,6 +102,7 @@ static T_command p_command()
   T_command command = new_command();
   // Set T_command words attribute to be the parsed words
   command->words = words;
+  command->redir = p_redir();
   return command;
 }
 
@@ -164,7 +166,7 @@ static T_sequence p_sequence()
 extern Tree parseTree(char *s)
 {
   scan = newScanner(s);
-  
+
   Tree tree = p_sequence();
   if (curr())
     ERROR("extra characters at end of input");
@@ -179,6 +181,16 @@ static void f_command(T_command t);
 static void f_pipeline(T_pipeline t);
 static void f_sequence(T_sequence t);
 
+static void f_redir(T_redir t)
+{
+  if (!t)
+    return;
+  if (t->input)
+    free(t->input); // Free input filename
+  if (t->output)
+    free(t->output); // Free output filename
+  free(t);
+}
 static void f_word(T_word t)
 {
   if (!t)
@@ -226,4 +238,35 @@ static void f_sequence(T_sequence t)
 extern void freeTree(Tree t)
 {
   f_sequence(t);
+}
+
+static T_redir p_redir()
+{
+  T_redir redir = new_redir();
+  redir->input = NULL;
+  redir->output = NULL;
+
+  // Parse < word (input redirection)
+  if (eat("<"))
+  {
+    T_word word = p_word();
+    if (!word)
+      ERROR("expected filename after <");
+    redir->input = strdup(word->s); // Save filename
+    free(word->s);
+    free(word);
+  }
+
+  // Parse > word (output redirection)
+  if (eat(">"))
+  {
+    T_word word = p_word();
+    if (!word)
+      ERROR("expected filename after >");
+    redir->output = strdup(word->s); // Save filename
+    free(word->s);
+    free(word);
+  }
+
+  return redir;
 }

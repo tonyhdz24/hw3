@@ -23,3 +23,34 @@ cat file.txt
 clea
 clear
 cat file.txt | grep hello
+clear
+ls | wc -l
+clear
+cat file.txt | grep hello | wc -l
+cat file.txt 
+clear
+cat file.txt | wc -l
+exit
+sleep 3 &
+echo "hello"
+sleep 3 &
+echo "hello"
+clear
+exit
+clear
+echo "hello world" | wc -w
+echo "one two three" | cat | wc -w
+ls
+cat file.txt | grep hello |wc -l
+cat file.txt | grep hello | wc -l
+clear
+ecit
+exit
+clear
+make
+exit
+echo "a b c" | wc -l
+exit
+cat file.txt | grep hello | wx -w
+cat file.txt | grep hello | wc -w
+exit
