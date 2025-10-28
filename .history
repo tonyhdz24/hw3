@@ -5,3 +5,21 @@ pwd
 exit
 sleep 1 & sleep 1 & sleep 1 & sleep 1 & 
 exit
+cat file.txt 
+clear
+cat file.txt | grep hello | wc -l
+clear
+exit
+cat file.txt | grep hello
+clear
+pwd
+pwd ; ls
+pwd & ls
+cle
+extexi
+exit
+clear
+cat file.txt
+clea
+clear
+cat file.txt | grep hello

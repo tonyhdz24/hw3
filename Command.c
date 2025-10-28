@@ -345,9 +345,9 @@ extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
 {
   // command to execute
   CommandRep r = command;
-  // printf("DEBUG executing command => %s \n", r->file);
+  printf("DEBUG executing command => %s \n", r->file);
 
-  // printf("DEBUG comamand fg is => %d \n", fg);
+  printf("DEBUG comamand fg is => %d \n", fg);
 
   // IF command is set to run in foreground and is a built in run immediatly
   if (fg && builtin(r, eof, jobs))
