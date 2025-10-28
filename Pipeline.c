@@ -69,7 +69,7 @@ static void exec_command_in_pipeline(Command command, int input_fd, int output_f
     char *file;
     char **argv;
   } *CommandRep;
-  
+
   CommandRep r = command;
   execvp(r->argv[0], r->argv);
   ERROR("execvp() failed");

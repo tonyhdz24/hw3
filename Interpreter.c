@@ -24,7 +24,6 @@ static void i_sequence(T_sequence t, Sequence sequence);
  * @return Command object ready to be added to a pipeline
  */
 
-//  TODO Does not handle I/O redirection
 static Command i_command(T_command t)
 {
   if (!t)

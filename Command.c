@@ -369,23 +369,6 @@ static void child(CommandRep r, int fg)
   ERROR("execvp() failed");
   exit(EXIT_FAILURE);
 }
-// static void child(CommandRep r, int fg)
-// {
-
-//   // printf("DEBUG in child()\n");
-
-//   int eof = 0;
-//   Jobs jobs = newJobs();
-//   // check if child command is a builtIn if it is then execute the built in command
-//   if (builtin(r, &eof, jobs))
-//   {
-//     return;
-//   }
-//   // If not a builtIN then call execvp() replaces the child process with the external program
-//   execvp(r->argv[0], r->argv);
-//   ERROR("execvp() failed");
-//   exit(0);
-// }
 
 extern void execCommand(Command command, Pipeline pipeline, Jobs jobs,
                         int *jobbed, int *eof, int fg)
